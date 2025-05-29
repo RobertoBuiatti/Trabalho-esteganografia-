@@ -17,7 +17,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Configurações
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
 # Cria o diretório de uploads se não existir
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -42,7 +42,11 @@ def encode():
         # Verifica se foi enviado um arquivo
         if 'image' not in request.files:
             logger.error("Nenhuma imagem enviada")
-            return jsonify({"error": "Nenhuma imagem enviada"}), 400
+            return jsonify({
+                "error": "Nenhuma imagem enviada",
+                "details": "É necessário enviar um arquivo de imagem para processamento.",
+                "code": "MISSING_IMAGE"
+            }), 400
             
         file = request.files['image']
         message = request.form.get('message', '')
@@ -52,15 +56,27 @@ def encode():
         
         if not message:
             logger.error("Mensagem não fornecida")
-            return jsonify({"error": "Mensagem não fornecida"}), 400
+            return jsonify({
+                "error": "Mensagem não fornecida",
+                "details": "É necessário fornecer uma mensagem para ser codificada na imagem.",
+                "code": "MISSING_MESSAGE"
+            }), 400
             
         if file.filename == '':
             logger.error("Nome do arquivo vazio")
-            return jsonify({"error": "Nome do arquivo vazio"}), 400
+            return jsonify({
+                "error": "Nome do arquivo inválido",
+                "details": "O arquivo enviado não possui um nome válido.",
+                "code": "INVALID_FILENAME"
+            }), 400
             
         if not allowed_file(file.filename):
             logger.error("Tipo de arquivo não permitido")
-            return jsonify({"error": "Tipo de arquivo não permitido"}), 400
+            return jsonify({
+                "error": "Tipo de arquivo não suportado",
+                "details": f"O arquivo deve ser uma imagem nos formatos: {', '.join(ALLOWED_EXTENSIONS)}.",
+                "code": "UNSUPPORTED_FORMAT"
+            }), 400
             
         # Salva o arquivo temporariamente
         filename = secure_filename(file.filename)
@@ -96,11 +112,26 @@ def encode():
             logger.error("Falha na codificação da mensagem")
             # Remove o arquivo temporário em caso de erro
             os.remove(temp_path)
-            return jsonify({"error": "Erro ao codificar mensagem"}), 500
+            return jsonify({
+                "error": "Falha na codificação",
+                "details": "Não foi possível codificar a mensagem na imagem. Verifique se a imagem tem capacidade suficiente.",
+                "code": "ENCODE_FAILED"
+            }), 500
             
     except Exception as e:
         logger.error(f"Erro durante a codificação: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        error_msg = str(e)
+        if "too large" in error_msg.lower():
+            return jsonify({
+                "error": "Arquivo muito grande",
+                "details": f"O tamanho máximo permitido é {MAX_CONTENT_LENGTH/(1024*1024)}MB.",
+                "code": "FILE_TOO_LARGE"
+            }), 413
+        return jsonify({
+            "error": "Erro interno",
+            "details": f"Ocorreu um erro inesperado: {error_msg}",
+            "code": "INTERNAL_ERROR"
+        }), 500
 
 @app.route('/decode', methods=['POST'])
 def decode():
@@ -145,7 +176,11 @@ def decode():
             return jsonify({"message": message}), 200
         else:
             logger.error("Nenhuma mensagem encontrada")
-            return jsonify({"error": "Nenhuma mensagem encontrada"}), 200  # Mudado para 200
+            return jsonify({
+                "error": "Nenhuma mensagem encontrada",
+                "details": "Não foi possível encontrar uma mensagem oculta nesta imagem. Verifique se a imagem foi realmente codificada.",
+                "code": "NO_MESSAGE_FOUND"
+            }), 404
             
     except Exception as e:
         logger.error(f"Erro durante a decodificação: {str(e)}", exc_info=True)

@@ -50,11 +50,15 @@ export class SteganographyAPI {
 
             const data = await response.json();
             
-            if (data.error) {
-                throw new Error(data.error);
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro na decodificação');
             }
 
-            return data.message || 'Nenhuma mensagem encontrada';
+            if (data.error) {
+                return null;
+            }
+
+            return data.message;
         } catch (error) {
             console.error('Erro na decodificação:', error);
             throw error;

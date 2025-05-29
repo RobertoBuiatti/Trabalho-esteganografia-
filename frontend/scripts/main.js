@@ -32,7 +32,18 @@ class App {
 
             } catch (error) {
                 console.error('Erro durante a codificação:', error);
-                this.ui.updateStatus(this.ui.elements.encodeStatus, error.message, true);
+                let errorMessage = error.message;
+                
+                // Tratamento específico de erros
+                if (errorMessage.includes('FILE_TOO_LARGE')) {
+                    errorMessage = 'O arquivo é muito grande. O tamanho máximo permitido é 50MB.';
+                } else if (errorMessage.includes('UNSUPPORTED_FORMAT')) {
+                    errorMessage = 'Formato de imagem não suportado. Use PNG, JPG, JPEG ou BMP.';
+                } else if (errorMessage.includes('ENCODE_FAILED')) {
+                    errorMessage = 'Não foi possível codificar a mensagem. A imagem pode ser muito pequena para a mensagem.';
+                }
+                
+                this.ui.updateStatus(this.ui.elements.encodeStatus, errorMessage, true);
             } finally {
                 this.ui.hideLoading();
             }
@@ -49,20 +60,41 @@ class App {
                 this.ui.showLoading('Extraindo mensagem da imagem...');
                 const message = await SteganographyAPI.decodeMessage(this.ui.state.decodeFile);
 
-                this.ui.elements.decodedMessage.textContent = message;
-                this.ui.updateStatus(
-                    this.ui.elements.decodeStatus,
-                    message === 'Nenhuma mensagem encontrada'
-                        ? 'Nenhuma mensagem encontrada na imagem'
-                        : 'Mensagem extraída com sucesso!'
-                );
+                if (message === null) {
+                    this.ui.elements.decodedMessage.textContent = '';
+                    this.ui.updateStatus(
+                        this.ui.elements.decodeStatus,
+                        'Nenhuma mensagem encontrada na imagem',
+                        true
+                    );
+                } else {
+                    this.ui.elements.decodedMessage.textContent = message;
+                    this.ui.updateStatus(
+                        this.ui.elements.decodeStatus,
+                        'Mensagem extraída com sucesso!'
+                    );
+                }
 
                 this.ui.resetDecodeForm();
 
             } catch (error) {
                 console.error('Erro durante a decodificação:', error);
                 this.ui.elements.decodedMessage.textContent = '';
-                this.ui.updateStatus(this.ui.elements.decodeStatus, error.message, true);
+                
+                let errorMessage = error.message;
+                
+                // Tratamento específico de erros
+                if (error.response?.status === 404) {
+                    errorMessage = 'Nenhuma mensagem encontrada nesta imagem. Verifique se a imagem foi codificada corretamente.';
+                } else if (errorMessage.includes('UNSUPPORTED_FORMAT')) {
+                    errorMessage = 'Formato de imagem não suportado. Use PNG, JPG, JPEG ou BMP.';
+                } else if (errorMessage.includes('FILE_TOO_LARGE')) {
+                    errorMessage = 'O arquivo é muito grande. O tamanho máximo permitido é 50MB.';
+                } else if (errorMessage.includes('cannot identify image file')) {
+                    errorMessage = 'O arquivo não é uma imagem válida ou está corrompido.';
+                }
+                
+                this.ui.updateStatus(this.ui.elements.decodeStatus, errorMessage, true);
             } finally {
                 this.ui.hideLoading();
             }
