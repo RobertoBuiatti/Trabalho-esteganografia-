@@ -22,7 +22,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configurações otimizadas
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
 MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8MB para reduzir uso de memória
 MAX_FILE_AGE = 1800  # 30 minutos
@@ -31,9 +31,31 @@ MAX_UPLOAD_DIR_SIZE = 50 * 1024 * 1024  # 50MB
 
 def init_app():
     """Inicializa a aplicação com configurações otimizadas"""
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    Thread(target=periodic_cleanup, daemon=True).start()
-    gc.enable()  # Ativa garbage collector
+    try:
+        # Cria diretório de uploads com path absoluto
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        
+        # Limpa arquivos antigos do diretório de uploads
+        if os.path.exists(UPLOAD_FOLDER):
+            for file in os.listdir(UPLOAD_FOLDER):
+                try:
+                    os.remove(os.path.join(UPLOAD_FOLDER, file))
+                except OSError:
+                    pass
+        
+        # Inicia thread de limpeza periódica
+        cleanup_thread = Thread(target=periodic_cleanup, daemon=True)
+        cleanup_thread.start()
+        
+        # Configura GC
+        gc.enable()
+        gc.collect()
+        
+        logger.info(f"Aplicação iniciada - Upload dir: {UPLOAD_FOLDER}")
+        return True
+    except Exception as e:
+        logger.error(f"Erro na inicialização: {str(e)}")
+        return False
 
 def allowed_file(filename: str) -> bool:
     """Verifica se o arquivo tem uma extensão permitida"""
@@ -202,5 +224,9 @@ def decode():
         gc.collect()  # Força limpeza de memória
 
 if __name__ == '__main__':
-    init_app()
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    # Verifica inicialização antes de subir o servidor
+    if init_app():
+        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    else:
+        print("Erro: Falha na inicialização da aplicação")
+        exit(1)
