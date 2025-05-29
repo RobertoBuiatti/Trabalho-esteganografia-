@@ -21,8 +21,19 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 # Configuração do CORS baseada no ambiente
-ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*')
-CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
+ALLOWED_ORIGINS = [
+    'https://trabalho-esteganografia.onrender.com',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+]
+CORS(app, resources={
+    r"/*": {
+        "origins": ALLOWED_ORIGINS,
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept"],
+        "supports_credentials": True
+    }
+})
 
 # Configurações otimizadas
 IS_PRODUCTION = os.environ.get('RENDER', False)

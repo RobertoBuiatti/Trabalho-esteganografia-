@@ -18,7 +18,11 @@ export class SteganographyAPI {
 
             const response = await fetch(`${API_URL}/encode`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             if (!response.ok) {
@@ -45,7 +49,11 @@ export class SteganographyAPI {
 
             const response = await fetch(`${API_URL}/decode`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
 
             const data = await response.json();
