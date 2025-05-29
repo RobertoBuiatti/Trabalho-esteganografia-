@@ -1,5 +1,8 @@
-flask>=2.0.0
-Pillow>=9.0.0
-flask-cors>=3.0.0
-gunicorn[gthread]>=20.0.0
-requests>=2.0.0
+flask==2.3.3
+Pillow==10.0.0
+flask-cors==4.0.0
+gunicorn[gthread]==21.2.0
+requests==2.31.0
+Werkzeug==2.3.7
+python-dotenv==1.0.0  # Para melhor gerenciamento de variáveis de ambiente
+greenlet==2.0.2  # Para melhor performance com threads

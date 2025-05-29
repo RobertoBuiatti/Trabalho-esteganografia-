@@ -12,22 +12,26 @@ import gc
 
 # Configuração de logging
 logging.basicConfig(
-    level=logging.INFO,  # Reduz logging para melhorar performance
+    level=os.environ.get('LOG_LEVEL', 'INFO'),
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Configuração do CORS baseada no ambiente
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*')
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
 
 # Configurações otimizadas
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+IS_PRODUCTION = os.environ.get('RENDER', False)
+UPLOAD_FOLDER = os.path.join('/tmp', 'uploads') if IS_PRODUCTION else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
-MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8MB para reduzir uso de memória
-MAX_FILE_AGE = 1800  # 30 minutos
-CHUNK_SIZE = 4096  # 4KB para streaming mais eficiente
-MAX_UPLOAD_DIR_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 8 * 1024 * 1024))  # 8MB default
+MAX_FILE_AGE = int(os.environ.get('MAX_FILE_AGE', 1800))  # 30 minutos default
+CHUNK_SIZE = int(os.environ.get('CHUNK_SIZE', 4096))  # 4KB default
+MAX_UPLOAD_DIR_SIZE = int(os.environ.get('MAX_UPLOAD_DIR_SIZE', 50 * 1024 * 1024))  # 50MB default
 
 def init_app():
     """Inicializa a aplicação com configurações otimizadas"""
