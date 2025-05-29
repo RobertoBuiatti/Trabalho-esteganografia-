@@ -1,91 +1,85 @@
 from PIL import Image
-from typing import Optional, Tuple
+import numpy as np
+from typing import Optional, Generator, Tuple
 
-def bin_to_str(binary: str) -> str:
-    """Converte uma string binária em texto"""
-    try:
-        message = ""
-        # Processa 8 bits por vez
-        for i in range(0, len(binary), 8):
-            byte = binary[i:i+8]
-            if len(byte) == 8:
-                # Converte para decimal
-                char_code = int(byte, 2)
-                # Só aceita caracteres ASCII imprimíveis
-                if 32 <= char_code <= 126:
-                    message += chr(char_code)
-                else:
-                    print(f"Caractere inválido encontrado (código: {char_code})")
-        return message
-    except Exception as e:
-        print(f"Erro na conversão binária para texto: {e}")
-        return ""
+def extract_bits(block: np.ndarray) -> Generator[int, None, None]:
+    """Extrai bits menos significativos de um bloco numpy"""
+    for pixel in block.reshape(-1, 3):
+        for color in pixel:
+            yield color & 1
 
-def extract_text_from_image(image_path: str) -> Optional[str]:
-    """
-    Extrai texto oculto de uma imagem usando LSB
-    Retorna o texto extraído ou None se houver erro
-    """
+def bits_to_text(bits_iterator: Generator[int, None, None], buffer_size: int = 1024) -> Optional[str]:
+    """Converte bits em texto, procurando pelo delimitador"""
+    DELIMITADOR = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
+    buffer = []
+    text = []
+    
     try:
-        print(f"Iniciando decodificação da imagem: {image_path}")
-        
-        # Abre e converte a imagem para RGB
-        img = Image.open(image_path).convert('RGB')
-        # Obtém os pixels como uma lista
-        pixels = list(img.getdata())
-        
-        # Extrai os bits menos significativos
-        binary_text = ""
-        
-        # Processa cada pixel
-        for r, g, b in pixels:
-            # Extrai o bit menos significativo de cada canal
-            binary_text += str(r & 1)
-            binary_text += str(g & 1)
-            binary_text += str(b & 1)
+        while True:
+            bit = next(bits_iterator)
+            buffer.append(bit)
             
-            # Verifica se encontrou o delimitador a cada 24 bits (um múltiplo do tamanho do delimitador)
-            if len(binary_text) % 24 == 0:
-                end_index = binary_text.find('1111111111111110')
-                if end_index != -1:
-                    # Extrai o texto até o delimitador
-                    binary_message = binary_text[:end_index]
-                    # Converte para texto
-                    message = bin_to_str(binary_message)
-                    if message:
-                        print(f"Mensagem extraída com sucesso: {message}")
-                        return message
-                    break
-
-        print("Nenhuma mensagem válida encontrada na imagem")
+            # Verifica delimitador
+            if len(buffer) >= 16 and buffer[-16:] == DELIMITADOR:
+                break
+                
+            # Converte bytes completos em caracteres
+            if len(buffer) >= 8:
+                byte_bits = buffer[:8]
+                char_code = sum(bit << (7-i) for i, bit in enumerate(byte_bits))
+                
+                if 32 <= char_code <= 126:
+                    text.append(chr(char_code))
+                    buffer = buffer[8:]
+            
+            # Limita tamanho do buffer
+            if len(buffer) > buffer_size:
+                buffer = buffer[-16:]  # Mantém apenas bits suficientes para detectar delimitador
+                
+        return ''.join(text) if text else None
+        
+    except StopIteration:
         return None
 
+def decode_image(image_path: str) -> Optional[str]:
+    """Decodifica mensagem oculta em uma imagem usando processamento eficiente"""
+    try:
+        with Image.open(image_path) as img:
+            img = img.convert('RGB')
+            width, height = img.size
+            
+            # Processa a imagem em blocos
+            BATCH_ROWS = 50
+            all_bits = None
+            
+            for y_start in range(0, height, BATCH_ROWS):
+                y_end = min(y_start + BATCH_ROWS, height)
+                
+                # Processa bloco atual
+                block = np.array(img.crop((0, y_start, width, y_end)))
+                
+                if all_bits is None:
+                    all_bits = extract_bits(block)
+                else:
+                    # Encadeia geradores de bits
+                    all_bits = (bit for iterator in [all_bits, extract_bits(block)] for bit in iterator)
+                
+                # Tenta extrair mensagem do buffer atual
+                result = bits_to_text(all_bits)
+                if result:
+                    return result
+            
+            return None
+            
     except Exception as e:
-        error_msg = str(e)
-        print(f"Erro ao extrair texto da imagem: {error_msg}")
-        if "cannot identify image file" in error_msg:
-            print("O arquivo não é uma imagem válida ou está corrompido")
-        elif "truncated" in error_msg:
-            print("A imagem está incompleta ou corrompida")
-        else:
-            print("Erro desconhecido ao processar a imagem")
+        print(f"Erro ao decodificar imagem: {e}")
         return None
 
 def decode_message(image_path: str) -> Tuple[Optional[str], bool]:
-    """
-    Extrai uma mensagem oculta de uma imagem
-    Retorna a mensagem e um booleano indicando sucesso
-    """
+    """Wrapper para manter compatibilidade com API existente"""
     try:
-        print(f"Iniciando decodificação da imagem: {image_path}")
-        message = extract_text_from_image(image_path)
-
-        if message is not None and message.strip():
-            return message, True
-
-        print("Falha ao extrair mensagem da imagem")
-        return None, False
-
+        result = decode_image(image_path)
+        return (result, True) if result else (None, False)
     except Exception as e:
-        print(f"Erro durante a decodificação: {e}")
+        print(f"Erro durante decodificação: {e}")
         return None, False

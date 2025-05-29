@@ -1,122 +1,145 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
 from utils import encode_and_save, decode_message
-from PIL import Image
-import io
 import logging
+import time
+from threading import Thread
+import shutil
+from werkzeug.middleware.proxy_fix import ProxyFix
+import gc
 
 # Configuração de logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,  # Reduz logging para melhorar performance
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Configurações
+# Configurações otimizadas
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
-MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
+MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8MB para reduzir uso de memória
+MAX_FILE_AGE = 1800  # 30 minutos
+CHUNK_SIZE = 4096  # 4KB para streaming mais eficiente
+MAX_UPLOAD_DIR_SIZE = 50 * 1024 * 1024  # 50MB
 
-# Cria o diretório de uploads se não existir
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+def init_app():
+    """Inicializa a aplicação com configurações otimizadas"""
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    Thread(target=periodic_cleanup, daemon=True).start()
+    gc.enable()  # Ativa garbage collector
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
+    """Verifica se o arquivo tem uma extensão permitida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def periodic_cleanup():
+    """Remove arquivos temporários e gerencia uso de memória"""
+    while True:
+        try:
+            now = time.time()
+            total_size = 0
+            
+            # Lista todos os arquivos uma única vez
+            files = [(f, os.path.join(UPLOAD_FOLDER, f)) for f in os.listdir(UPLOAD_FOLDER)]
+            
+            for filename, filepath in files:
+                try:
+                    if os.path.isfile(filepath):
+                        file_age = now - os.path.getmtime(filepath)
+                        file_size = os.path.getsize(filepath)
+                        total_size += file_size
+                        
+                        # Remove arquivos antigos ou se diretório estiver muito grande
+                        if file_age > MAX_FILE_AGE or total_size > MAX_UPLOAD_DIR_SIZE:
+                            os.remove(filepath)
+                except OSError:
+                    continue
+            
+            # Força limpeza de memória
+            gc.collect()
+            
+        except Exception as e:
+            logger.error(f"Erro durante limpeza: {e}")
+        
+        time.sleep(300)  # Executa a cada 5 minutos
+
+def stream_file(file_path: str):
+    """Stream otimizado de arquivo"""
+    def generate():
+        try:
+            with open(file_path, 'rb') as f:
+                while data := f.read(CHUNK_SIZE):
+                    yield data
+        finally:
+            # Limpa o arquivo após streaming
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except OSError:
+                pass
+    return generate()
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Endpoint para verificar a saúde da API"""
+    """Endpoint de healthcheck"""
+    gc.collect()  # Força limpeza de memória
     return jsonify({"status": "healthy"}), 200
 
 @app.route('/encode', methods=['POST'])
 def encode():
-    """
-    Endpoint para codificar uma mensagem em uma imagem
-    Espera um arquivo de imagem e uma mensagem no formato multipart/form-data
-    """
+    """Endpoint para codificar mensagem em imagem"""
+    temp_path = output_path = None
     try:
-        logger.debug("Iniciando processo de codificação")
-        
-        # Verifica se foi enviado um arquivo
+        # Validações iniciais
+        if not request.content_length or request.content_length > MAX_CONTENT_LENGTH:
+            return jsonify({"error": "Arquivo muito grande", "code": "FILE_TOO_LARGE"}), 413
+            
         if 'image' not in request.files:
-            logger.error("Nenhuma imagem enviada")
-            return jsonify({
-                "error": "Nenhuma imagem enviada",
-                "details": "É necessário enviar um arquivo de imagem para processamento.",
-                "code": "MISSING_IMAGE"
-            }), 400
+            return jsonify({"error": "Imagem não enviada", "code": "MISSING_IMAGE"}), 400
             
         file = request.files['image']
-        message = request.form.get('message', '')
+        message = request.form.get('message', '').strip()
         
-        logger.debug(f"Arquivo recebido: {file.filename}")
-        logger.debug(f"Tamanho da mensagem: {len(message)} caracteres")
-        
-        if not message:
-            logger.error("Mensagem não fornecida")
-            return jsonify({
-                "error": "Mensagem não fornecida",
-                "details": "É necessário fornecer uma mensagem para ser codificada na imagem.",
-                "code": "MISSING_MESSAGE"
-            }), 400
+        if not message or not file.filename or not allowed_file(file.filename):
+            return jsonify({"error": "Parâmetros inválidos", "code": "INVALID_PARAMS"}), 400
             
-        if file.filename == '':
-            logger.error("Nome do arquivo vazio")
-            return jsonify({
-                "error": "Nome do arquivo inválido",
-                "details": "O arquivo enviado não possui um nome válido.",
-                "code": "INVALID_FILENAME"
-            }), 400
-            
-        if not allowed_file(file.filename):
-            logger.error("Tipo de arquivo não permitido")
-            return jsonify({
-                "error": "Tipo de arquivo não suportado",
-                "details": f"O arquivo deve ser uma imagem nos formatos: {', '.join(ALLOWED_EXTENSIONS)}.",
-                "code": "UNSUPPORTED_FORMAT"
-            }), 400
-            
-        # Salva o arquivo temporariamente
+        # Processa arquivo
         filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(temp_path)
-        logger.debug(f"Arquivo salvo temporariamente em: {temp_path}")
+        timestamp = int(time.time())
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_{timestamp}_{filename}")
+        output_path = os.path.join(UPLOAD_FOLDER, f"encoded_{timestamp}_{filename}")
         
-        # Gera um nome para o arquivo de saída
-        output_filename = f"encoded_{filename}"
-        output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+        # Salva arquivo em chunks pequenos
+        with open(temp_path, 'wb') as f:
+            while chunk := file.read(CHUNK_SIZE):
+                f.write(chunk)
         
-        # Codifica a mensagem na imagem
-        logger.debug("Iniciando codificação LSB")
+        # Codifica mensagem
         if encode_and_save(temp_path, message, output_path):
-            logger.debug("Codificação concluída com sucesso")
-            
-            # Prepara o arquivo para envio
-            with open(output_path, 'rb') as f:
-                file_data = io.BytesIO(f.read())
-                
-            # Remove os arquivos temporários
             os.remove(temp_path)
-            os.remove(output_path)
-            logger.debug("Arquivos temporários removidos")
+            temp_path = None
             
-            return send_file(
-                file_data,
-                mimetype=f'image/{filename.rsplit(".", 1)[1].lower()}',
-                as_attachment=True,
-                download_name=output_filename
+            response = Response(
+                stream_file(output_path),
+                mimetype=f'image/{filename.rsplit(".", 1)[1].lower()}'
             )
-        else:
-            logger.error("Falha na codificação da mensagem")
-            # Remove o arquivo temporário em caso de erro
-            os.remove(temp_path)
-            return jsonify({
-                "error": "Falha na codificação",
-                "details": "Não foi possível codificar a mensagem na imagem. Verifique se a imagem tem capacidade suficiente.",
-                "code": "ENCODE_FAILED"
-            }), 500
+            response.headers.update({
+                'Content-Disposition': f'attachment; filename="encoded_{filename}"',
+                'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma': 'no-cache'
+            })
+            
+            # Arquivo será removido após streaming
+            return response
+            
+        raise Exception("Falha na codificação")
             
     except Exception as e:
         logger.error(f"Erro durante a codificação: {str(e)}", exc_info=True)
@@ -135,57 +158,49 @@ def encode():
 
 @app.route('/decode', methods=['POST'])
 def decode():
-    """
-    Endpoint para decodificar uma mensagem de uma imagem
-    Espera um arquivo de imagem no formato multipart/form-data
-    """
+    """Endpoint para decodificar mensagem de uma imagem"""
+    temp_path = None
     try:
-        logger.debug("Iniciando processo de decodificação")
+        # Validações iniciais
+        if not request.content_length or request.content_length > MAX_CONTENT_LENGTH:
+            return jsonify({"error": "Arquivo muito grande", "code": "FILE_TOO_LARGE"}), 413
         
         if 'image' not in request.files:
-            logger.error("Nenhuma imagem enviada")
-            return jsonify({"error": "Nenhuma imagem enviada"}), 400
+            return jsonify({"error": "Imagem não enviada", "code": "MISSING_IMAGE"}), 400
             
         file = request.files['image']
-        logger.debug(f"Arquivo recebido: {file.filename}")
-        
-        if file.filename == '':
-            logger.error("Nome do arquivo vazio")
-            return jsonify({"error": "Nome do arquivo vazio"}), 400
+        if not file.filename or not allowed_file(file.filename):
+            return jsonify({"error": "Arquivo inválido", "code": "INVALID_FILE"}), 400
             
-        if not allowed_file(file.filename):
-            logger.error("Tipo de arquivo não permitido")
-            return jsonify({"error": "Tipo de arquivo não permitido"}), 400
-            
-        # Salva o arquivo temporariamente
+        # Processa arquivo
         filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(temp_path)
-        logger.debug(f"Arquivo salvo temporariamente em: {temp_path}")
+        timestamp = int(time.time())
+        temp_path = os.path.join(UPLOAD_FOLDER, f"temp_decode_{timestamp}_{filename}")
         
-        # Decodifica a mensagem
-        logger.debug("Iniciando decodificação LSB")
+        with open(temp_path, 'wb') as f:
+            while chunk := file.read(CHUNK_SIZE):
+                f.write(chunk)
+        
+        # Decodifica mensagem
         message, success = decode_message(temp_path)
         
-        # Remove o arquivo temporário
-        os.remove(temp_path)
-        logger.debug("Arquivo temporário removido")
-        
+        # Limpa arquivo temporário
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            temp_path = None
+            
         if success and message:
-            logger.debug(f"Mensagem extraída: {message}")
-            return jsonify({"message": message}), 200
-        else:
-            logger.error("Nenhuma mensagem encontrada")
-            return jsonify({
-                "error": "Nenhuma mensagem encontrada",
-                "details": "Não foi possível encontrar uma mensagem oculta nesta imagem. Verifique se a imagem foi realmente codificada.",
-                "code": "NO_MESSAGE_FOUND"
-            }), 404
+            return jsonify({"message": message, "success": True}), 200
+            
+        return jsonify({"error": "Mensagem não encontrada", "code": "NO_MESSAGE"}), 404
             
     except Exception as e:
-        logger.error(f"Erro durante a decodificação: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        return jsonify({"error": str(e), "code": "INTERNAL_ERROR"}), 500
+    finally:
+        gc.collect()  # Força limpeza de memória
 
 if __name__ == '__main__':
-    logger.info("Iniciando servidor Flask")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    init_app()
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
