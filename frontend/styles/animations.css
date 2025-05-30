@@ -1,19 +1,43 @@
+/* Configuração base para animações */
+:root {
+    --animation-timing: 0.3s;
+    --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Suporte para preferências de movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Animações otimizadas para performance */
 @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
+    0% { 
+        background-position: 0% 50%;
+        will-change: background-position;
+    }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    0% { 
+        transform: scale(1);
+        will-change: transform;
+    }
+    50% { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
 
 @keyframes slideIn {
     from {
-        transform: translateY(20px);
+        transform: translateY(10px);
         opacity: 0;
+        will-change: transform, opacity;
     }
     to {
         transform: translateY(0);
@@ -21,34 +45,76 @@
     }
 }
 
-@keyframes glow {
-    0% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.2); }
-    50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
-    100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.2); }
-}
-
-@keyframes shine {
-    0% { transform: translateX(-100%) rotate(45deg); }
-    100% { transform: translateX(100%) rotate(45deg); }
-}
-
-@keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
-}
-
 @keyframes spin {
-    from { transform: rotate(0deg); }
+    from { 
+        transform: rotate(0deg);
+        will-change: transform;
+    }
     to { transform: rotate(360deg); }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
+    from { 
+        opacity: 0;
+        will-change: opacity;
+    }
     to { opacity: 1; }
 }
 
+/* Classes de utilidade para animações */
 .fade-in {
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn var(--animation-timing) var(--animation-easing);
+}
+
+.slide-in {
+    animation: slideIn var(--animation-timing) var(--animation-easing);
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Classes para estados de animação */
+.animate-once {
+    animation-iteration-count: 1;
+}
+
+.animate-pause {
+    animation-play-state: paused;
+}
+
+/* Utilitários de transição */
+.transition-all {
+    transition: all var(--animation-timing) var(--animation-easing);
+}
+
+.transition-transform {
+    transition: transform var(--animation-timing) var(--animation-easing);
+}
+
+.transition-opacity {
+    transition: opacity var(--animation-timing) var(--animation-easing);
+}
+
+/* Suporte para modo de alto contraste */
+@media screen and (-ms-high-contrast: active) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Ajustes para dispositivos móveis */
+@media (max-width: var(--mobile)) {
+    :root {
+        --animation-timing: 0.2s;
+    }
+    
+    .slide-in {
+        animation-duration: 0.2s;
+    }
+    
+    .fade-in {
+        animation-duration: 0.2s;
+    }
 }

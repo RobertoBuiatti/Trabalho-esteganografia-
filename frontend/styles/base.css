@@ -1,48 +1,153 @@
 /* Reset e estilos base */
-* {
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
-    font-family: "Segoe UI", system-ui, sans-serif;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background-color: var(--background-color);
     color: var(--text-color);
     line-height: 1.5;
     min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tipografia base */
+/* Sistema de grid responsivo */
+.container {
+    width: 100%;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    overflow-x: hidden;
+}
+
+.grid {
+    display: grid;
+    gap: var(--spacing-md);
+    grid-template-columns: repeat(12, 1fr);
+}
+
+/* Tipografia responsiva */
+h1, h2, h3, h4, h5, h6 {
+    margin-bottom: var(--spacing-md);
+    line-height: 1.2;
+}
+
 h1 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+    font-size: clamp(2rem, 5vw, 2.5rem);
 }
 
 h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
+    font-size: clamp(1.5rem, 4vw, 2rem);
     color: var(--text-color);
 }
 
-p {
-    margin-bottom: 1rem;
+h3 {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
 }
 
-/* Container base */
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
+p {
+    margin-bottom: var(--spacing-md);
+    max-width: 70ch;
+}
+
+/* Imagens responsivas */
+img, video, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Utilitários de responsividade */
+.hide-mobile {
+    display: none;
 }
 
 /* Media Queries */
-@media (max-width: 768px) {
+@media (max-width: var(--mobile)) {
+    html {
+        font-size: 14px;
+    }
+    
     .container {
-        padding: 1rem;
+        padding: var(--spacing-sm);
     }
+    
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
 
-    h1 {
-        font-size: 2rem;
+@media (min-width: var(--mobile)) and (max-width: var(--tablet)) {
+    .grid {
+        grid-template-columns: repeat(6, 1fr);
     }
+    
+    .hide-mobile {
+        display: block;
+    }
+}
+
+@media (min-width: var(--tablet)) and (max-width: var(--desktop)) {
+    .grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+}
+
+@media (min-width: var(--desktop)) {
+    .grid {
+        grid-template-columns: repeat(12, 1fr);
+    }
+}
+
+/* Scroll suave */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--surface-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+/* Classes utilitárias para espaçamento */
+.mx-auto {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.my-auto {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+/* Prevenção de overflow */
+.text-wrap {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

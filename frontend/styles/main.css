@@ -1,6 +1,43 @@
-/* Importação das variáveis e estilos */
+/**
+ * Main Stylesheet
+ * 
+ * Ordem de importação:
+ * 1. variables.css - Variáveis globais e configurações
+ * 2. animations.css - Animações e transições
+ * 3. base.css - Estilos base e reset
+ * 4. components.css - Componentes reutilizáveis
+ * 5. layout.css - Estrutura e layout
+ */
+
 @import 'variables.css';
 @import 'animations.css';
 @import 'base.css';
 @import 'components.css';
 @import 'layout.css';
+
+/* Estilos globais adicionais */
+::selection {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Fix para o overflow horizontal em dispositivos móveis */
+html, body {
+    overflow-x: hidden;
+    position: relative;
+    width: 100%;
+}
+
+/* Smooth scroll apenas se o usuário não preferir movimento reduzido */
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Ajuste para tela muito pequena */
+@media (max-width: 320px) {
+    html {
+        font-size: 14px;
+    }
+}

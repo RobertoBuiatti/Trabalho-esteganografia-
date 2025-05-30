@@ -4,7 +4,6 @@ from PIL import Image
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import tempfile
-import shutil
 from pathlib import Path
 
 app = Flask(__name__)
