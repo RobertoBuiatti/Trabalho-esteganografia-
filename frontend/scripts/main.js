@@ -1,21 +1,21 @@
 // Configuração da API
-const API_URL = 'https://steganografia-api.onrender.com';
+const API_URL = "https://steganografia-api.onrender.com";
 
 // Elementos do DOM
 const elements = {
-    encodeDropArea: document.getElementById('encode-drop-area'),
-    decodeDropArea: document.getElementById('decode-drop-area'),
-    encodeFileInput: document.getElementById('encode-file-input'),
-    decodeFileInput: document.getElementById('decode-file-input'),
-    encodePreview: document.getElementById('encode-preview'),
-    decodePreview: document.getElementById('decode-preview'),
-    messageInput: document.getElementById('message-input'),
-    encodeButton: document.getElementById('encode-button'),
-    decodeButton: document.getElementById('decode-button'),
-    encodeStatus: document.getElementById('encode-status'),
-    decodeStatus: document.getElementById('decode-status'),
-    decodedMessage: document.getElementById('decoded-message'),
-    loadingOverlay: document.getElementById('loading-overlay')
+    encodeDropArea: document.getElementById("encode-drop-area"),
+    decodeDropArea: document.getElementById("decode-drop-area"),
+    encodeFileInput: document.getElementById("encode-file-input"),
+    decodeFileInput: document.getElementById("decode-file-input"),
+    encodePreview: document.getElementById("encode-preview"),
+    decodePreview: document.getElementById("decode-preview"),
+    messageInput: document.getElementById("message-input"),
+    encodeButton: document.getElementById("encode-button"),
+    decodeButton: document.getElementById("decode-button"),
+    encodeStatus: document.getElementById("encode-status"),
+    decodeStatus: document.getElementById("decode-status"),
+    decodedMessage: document.getElementById("decoded-message"),
+    loadingOverlay: document.getElementById("loading-overlay")
 };
 
 // Estado da aplicação
@@ -28,10 +28,10 @@ const hideLoading = () => elements.loadingOverlay.hidden = true;
 
 function showStatus(element, message, isError = false) {
     element.textContent = message;
-    element.className = `status-message ${isError ? 'error' : 'success'}`;
+    element.className = `status-message ${isError ? "error" : "success"}`;
     setTimeout(() => {
-        element.textContent = '';
-        element.className = 'status-message';
+        element.textContent = "";
+        element.className = "status-message";
     }, 5000);
 }
 
@@ -42,8 +42,8 @@ function setupDropArea(dropArea, fileInput, previewElement, fileStorage) {
         e.stopPropagation();
     };
 
-    const highlightDropArea = () => dropArea.classList.add('highlight');
-    const unhighlightDropArea = () => dropArea.classList.remove('highlight');
+    const highlightDropArea = () => dropArea.classList.add("highlight");
+    const unhighlightDropArea = () => dropArea.classList.remove("highlight");
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, handleDragEvent);
@@ -82,17 +82,18 @@ function handleFile(file, previewElement, fileStorage) {
     const reader = new FileReader();
     reader.onload = (e) => {
         previewElement.src = e.target.result;
-        previewElement.hidden = false;
         
         if (fileStorage === 'encode') {
             encodeFile = file;
             elements.encodeButton.disabled = !elements.messageInput.value;
-            // Mostrar controles de codificação
+            // Mostrar preview e controles de codificação
+            document.getElementById('encode-preview-container').classList.remove('hidden');
             document.getElementById('encode-controls').classList.remove('hidden');
         } else {
             decodeFile = file;
             elements.decodeButton.disabled = false;
-            // Mostrar controles de decodificação
+            // Mostrar preview e controles de decodificação
+            document.getElementById('decode-preview-container').classList.remove('hidden');
             document.getElementById('decode-controls').classList.remove('hidden');
         }
     };
@@ -131,7 +132,7 @@ async function encodeMessage() {
 
         showStatus(elements.encodeStatus, 'Mensagem ocultada com sucesso!');
         elements.messageInput.value = '';
-        elements.encodePreview.hidden = true;
+        document.getElementById('encode-preview-container').classList.add('hidden');
         elements.encodeButton.disabled = true;
         encodeFile = null;
     } catch (error) {
@@ -176,6 +177,7 @@ async function decodeMessage() {
         hideLoading();
         // Resetar interface após decodificação
         document.getElementById('decode-controls').classList.add('hidden');
+        document.getElementById('decode-preview-container').classList.add('hidden');
         elements.decodedMessage.textContent = '';
     }
 }
@@ -184,8 +186,10 @@ async function decodeMessage() {
 function resetInterface() {
     const controls = ['encode-controls', 'decode-controls'];
     controls.forEach(id => document.getElementById(id).classList.add('hidden'));
-    elements.encodePreview.hidden = true;
-    elements.decodePreview.hidden = true;
+    
+    document.getElementById('encode-preview-container').classList.add('hidden');
+    document.getElementById('decode-preview-container').classList.add('hidden');
+    
     elements.messageInput.value = '';
     elements.decodedMessage.textContent = '';
     encodeFile = null;
@@ -198,6 +202,7 @@ function resetInterface() {
 function init() {
     // Resetar interface inicial
     resetInterface();
+    
     // Configurar áreas de arrastar e soltar
     setupDropArea(elements.encodeDropArea, elements.encodeFileInput, elements.encodePreview, 'encode');
     setupDropArea(elements.decodeDropArea, elements.decodeFileInput, elements.decodePreview, 'decode');
