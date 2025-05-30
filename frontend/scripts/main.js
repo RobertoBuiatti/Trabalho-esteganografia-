@@ -175,10 +175,8 @@ async function decodeMessage() {
         elements.decodedMessage.textContent = '';
     } finally {
         hideLoading();
-        // Resetar interface após decodificação
-        document.getElementById('decode-controls').classList.add('hidden');
+        // Manter a mensagem extraída visível e apenas ocultar o preview
         document.getElementById('decode-preview-container').classList.add('hidden');
-        elements.decodedMessage.textContent = '';
     }
 }
 

@@ -61,6 +61,16 @@
     to { opacity: 1; }
 }
 
+@keyframes shine {
+    0% {
+        background-position: -200% center;
+        will-change: background-position;
+    }
+    100% {
+        background-position: 200% center;
+    }
+}
+
 /* Classes de utilidade para animações */
 .fade-in {
     animation: fadeIn var(--animation-timing) var(--animation-easing);
@@ -72,6 +82,21 @@
 
 .spin {
     animation: spin 1s linear infinite;
+}
+
+/* Animação de reflexo para áreas de upload */
+.upload-area {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        90deg,
+        transparent 25%,
+        rgba(255, 255, 255, 0.2) 45%,
+        rgba(255, 255, 255, 0.2) 55%,
+        transparent 75%
+    );
+    background-size: 200% 100%;
+    animation: shine 3s infinite linear;
 }
 
 /* Classes para estados de animação */
