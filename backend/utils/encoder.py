@@ -31,8 +31,17 @@ def encode_image(image_path: str, output_path: str, secret_text: str) -> bool:
                 print(f"Erro: imagem pequena demais. Necessário: {text_bits} bits")
                 return False
 
-            # Processa a imagem em pequenos blocos
-            BATCH_ROWS = 50
+            # Limita tamanho da imagem para prevenir estouro de memória
+            MAX_DIMENSION = 2048
+            if width > MAX_DIMENSION or height > MAX_DIMENSION:
+                ratio = min(MAX_DIMENSION/width, MAX_DIMENSION/height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                img = img.resize((new_width, width), Image.LANCZOS)
+                width, height = new_width, new_height
+
+            # Processa a imagem em blocos pequenos para controle de memória
+            BATCH_ROWS = 25  # Reduzido para menor uso de memória
             new_img = Image.new('RGB', (width, height))
             binary_gen = str_to_binary_generator(secret_text)
             next_bit = next(binary_gen, None)
@@ -40,8 +49,8 @@ def encode_image(image_path: str, output_path: str, secret_text: str) -> bool:
             for y_start in range(0, height, BATCH_ROWS):
                 y_end = min(y_start + BATCH_ROWS, height)
                 
-                # Processa bloco atual
-                block = np.array(img.crop((0, y_start, width, y_end)))
+                # Processa bloco atual com controle de memória
+                block = np.asarray(img.crop((0, y_start, width, y_end)), dtype=np.uint8)
                 
                 if next_bit is not None:
                     # Modifica apenas os bits necessários
@@ -52,8 +61,9 @@ def encode_image(image_path: str, output_path: str, secret_text: str) -> bool:
                                     block[i,j,c] = (block[i,j,c] & ~1) | next_bit
                                     next_bit = next(binary_gen, None)
                 
-                # Converte bloco processado de volta para imagem
-                block_img = Image.fromarray(block)
+                # Libera memória do bloco processado
+                block_img = Image.fromarray(block, 'RGB')
+                del block
                 new_img.paste(block_img, (0, y_start))
                 
                 if next_bit is None:

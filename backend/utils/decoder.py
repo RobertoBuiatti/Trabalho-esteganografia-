@@ -8,7 +8,7 @@ def extract_bits(block: np.ndarray) -> Generator[int, None, None]:
         for color in pixel:
             yield color & 1
 
-def bits_to_text(bits_iterator: Generator[int, None, None], buffer_size: int = 1024) -> Optional[str]:
+def bits_to_text(bits_iterator: Generator[int, None, None], buffer_size: int = 512) -> Optional[str]:
     """Converte bits em texto, procurando pelo delimitador"""
     DELIMITADOR = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]
     buffer = []
@@ -48,21 +48,34 @@ def decode_image(image_path: str) -> Optional[str]:
             img = img.convert('RGB')
             width, height = img.size
             
-            # Processa a imagem em blocos
-            BATCH_ROWS = 50
+            # Limita tamanho da imagem para prevenir estouro de memória
+            MAX_DIMENSION = 2048
+            if width > MAX_DIMENSION or height > MAX_DIMENSION:
+                ratio = min(MAX_DIMENSION/width, MAX_DIMENSION/height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                img = img.resize((new_width, new_height), Image.LANCZOS)
+                width, height = new_width, new_height
+
+            # Processa a imagem em blocos pequenos para controle de memória
+            BATCH_ROWS = 25
             all_bits = None
             
             for y_start in range(0, height, BATCH_ROWS):
                 y_end = min(y_start + BATCH_ROWS, height)
                 
-                # Processa bloco atual
-                block = np.array(img.crop((0, y_start, width, y_end)))
+                # Processa bloco atual com controle de memória
+                block = np.asarray(img.crop((0, y_start, width, y_end)), dtype=np.uint8)
                 
+                # Processa bits do bloco atual
+                block_bits = extract_bits(block)
+                del block  # Libera memória do bloco
+
                 if all_bits is None:
-                    all_bits = extract_bits(block)
+                    all_bits = block_bits
                 else:
-                    # Encadeia geradores de bits
-                    all_bits = (bit for iterator in [all_bits, extract_bits(block)] for bit in iterator)
+                    # Encadeia geradores de bits com limpeza de memória
+                    all_bits = (bit for iterator in [all_bits, block_bits] for bit in iterator)
                 
                 # Tenta extrair mensagem do buffer atual
                 result = bits_to_text(all_bits)

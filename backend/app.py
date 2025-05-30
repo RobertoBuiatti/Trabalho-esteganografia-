@@ -30,8 +30,10 @@ CORS(app, resources={
     r"/*": {
         "origins": ALLOWED_ORIGINS,
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept"],
-        "supports_credentials": True
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
+        "expose_headers": ["Content-Disposition"],
+        "supports_credentials": True,
+        "max_age": 600
     }
 })
 
@@ -39,7 +41,9 @@ CORS(app, resources={
 IS_PRODUCTION = os.environ.get('RENDER', False)
 UPLOAD_FOLDER = os.path.join('/tmp', 'uploads') if IS_PRODUCTION else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
-MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 8 * 1024 * 1024))  # 8MB default
+# Limites ajustados para evitar estouro de memória no Render
+MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 5 * 1024 * 1024))  # 5MB default
+MAX_MEMORY_USAGE = int(os.environ.get('MAX_MEMORY_USAGE', 450 * 1024 * 1024))  # 450MB default
 MAX_FILE_AGE = int(os.environ.get('MAX_FILE_AGE', 1800))  # 30 minutos default
 CHUNK_SIZE = int(os.environ.get('CHUNK_SIZE', 4096))  # 4KB default
 MAX_UPLOAD_DIR_SIZE = int(os.environ.get('MAX_UPLOAD_DIR_SIZE', 50 * 1024 * 1024))  # 50MB default
@@ -76,8 +80,19 @@ def allowed_file(filename: str) -> bool:
     """Verifica se o arquivo tem uma extensão permitida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def check_memory_usage() -> bool:
+    """Verifica se o uso de memória está dentro do limite"""
+    try:
+        import psutil
+        process = psutil.Process()
+        memory_usage = process.memory_info().rss
+        return memory_usage < MAX_MEMORY_USAGE
+    except:
+        return True  # Se não conseguir verificar, assume que está ok
+
 def periodic_cleanup():
     """Remove arquivos temporários e gerencia uso de memória"""
+    import psutil
     while True:
         try:
             now = time.time()
@@ -99,8 +114,21 @@ def periodic_cleanup():
                 except OSError:
                     continue
             
-            # Força limpeza de memória
-            gc.collect()
+            # Força limpeza de memória mais agressiva
+            gc.collect(generation=2)
+            
+            # Libera memória do sistema se necessário
+            try:
+                process = psutil.Process()
+                if process.memory_info().rss > MAX_MEMORY_USAGE * 0.8:  # 80% do limite
+                    import ctypes
+                    if hasattr(ctypes, 'windll'):
+                        ctypes.windll.psapi.EmptyWorkingSet(process.pid)
+                    else:
+                        import resource
+                        resource.setrlimit(resource.RLIMIT_AS, (MAX_MEMORY_USAGE, MAX_MEMORY_USAGE))
+            except:
+                pass
             
         except Exception as e:
             logger.error(f"Erro durante limpeza: {e}")
@@ -131,6 +159,12 @@ def health_check():
 
 @app.route('/encode', methods=['POST'])
 def encode():
+    if not check_memory_usage():
+        return jsonify({
+            "error": "Servidor sob carga alta",
+            "details": "Tente novamente em alguns minutos",
+            "code": "HIGH_MEMORY"
+        }), 503
     """Endpoint para codificar mensagem em imagem"""
     temp_path = output_path = None
     try:
@@ -170,7 +204,10 @@ def encode():
             response.headers.update({
                 'Content-Disposition': f'attachment; filename="encoded_{filename}"',
                 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-                'Pragma': 'no-cache'
+                'Pragma': 'no-cache',
+                'Access-Control-Allow-Origin': request.headers.get('Origin'),
+                'Access-Control-Allow-Credentials': 'true',
+                'Vary': 'Origin'
             })
             
             # Arquivo será removido após streaming
@@ -195,6 +232,12 @@ def encode():
 
 @app.route('/decode', methods=['POST'])
 def decode():
+    if not check_memory_usage():
+        return jsonify({
+            "error": "Servidor sob carga alta",
+            "details": "Tente novamente em alguns minutos",
+            "code": "HIGH_MEMORY"
+        }), 503
     """Endpoint para decodificar mensagem de uma imagem"""
     temp_path = None
     try:
@@ -227,7 +270,13 @@ def decode():
             temp_path = None
             
         if success and message:
-            return jsonify({"message": message, "success": True}), 200
+            response = jsonify({"message": message, "success": True})
+            response.headers.update({
+                'Access-Control-Allow-Origin': request.headers.get('Origin'),
+                'Access-Control-Allow-Credentials': 'true',
+                'Vary': 'Origin'
+            })
+            return response, 200
             
         return jsonify({"error": "Mensagem não encontrada", "code": "NO_MESSAGE"}), 404
             

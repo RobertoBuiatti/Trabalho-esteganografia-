@@ -10,6 +10,11 @@ export class SteganographyAPI {
      */
     static #defaultConfig = {
         method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
     };
 
     /**
