@@ -1,0 +1,180 @@
+/* Botões */
+.primary-button {
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    background-size: 200% 200%;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    animation: gradientBG 5s ease infinite;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.primary-button:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+}
+
+.primary-button:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.primary-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--surface-color);
+    box-shadow: none;
+}
+
+/* Upload área */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: var(--surface-color);
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.upload-area:hover {
+    border-color: var(--accent-color);
+    background-color: rgba(99, 102, 241, 0.1);
+    animation: glow 2s infinite;
+    transform: translateY(-2px);
+}
+
+/* Preview de imagem */
+.preview-container {
+    margin-top: 1rem;
+    text-align: center;
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+.preview-container img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.5s ease-out;
+    border: 2px solid transparent;
+}
+
+.preview-container img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 30px rgba(139, 92, 246, 0.25);
+    border-color: var(--accent-color);
+}
+
+/* Textarea */
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.08);
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    background-image: linear-gradient(to bottom right, rgba(139, 92, 246, 0.02), rgba(236, 72, 153, 0.02));
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Status Messages */
+.status-message {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    animation: slideIn 0.4s ease-out;
+    border: 1px solid transparent;
+}
+
+.status-message:not(:empty) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.status-message.error {
+    color: var(--error-color);
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.status-message.success {
+    color: var(--success-color);
+    background-color: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    animation: pulse 1s ease infinite;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    transition: opacity 0.3s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+.loading-overlay[hidden] {
+    display: none;
+}
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--background-color);
+    border-bottom-color: var(--primary-color);
+    border-right-color: var(--accent-color);
+    border-radius: 50%;
+    margin-bottom: 1rem;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.loading-overlay p {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: 500;
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientBG 5s ease infinite;
+}
