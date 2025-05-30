@@ -87,9 +87,13 @@ function handleFile(file, previewElement, fileStorage) {
         if (fileStorage === 'encode') {
             encodeFile = file;
             elements.encodeButton.disabled = !elements.messageInput.value;
+            // Mostrar controles de codificação
+            document.getElementById('encode-controls').classList.remove('hidden');
         } else {
             decodeFile = file;
             elements.decodeButton.disabled = false;
+            // Mostrar controles de decodificação
+            document.getElementById('decode-controls').classList.remove('hidden');
         }
     };
     reader.readAsDataURL(file);
@@ -134,6 +138,9 @@ async function encodeMessage() {
         showStatus(elements.encodeStatus, error.message, true);
     } finally {
         hideLoading();
+        // Resetar interface após codificação
+        document.getElementById('encode-controls').classList.add('hidden');
+        elements.messageInput.value = '';
     }
 }
 
@@ -167,11 +174,30 @@ async function decodeMessage() {
         elements.decodedMessage.textContent = '';
     } finally {
         hideLoading();
+        // Resetar interface após decodificação
+        document.getElementById('decode-controls').classList.add('hidden');
+        elements.decodedMessage.textContent = '';
     }
+}
+
+// Resetar interface
+function resetInterface() {
+    const controls = ['encode-controls', 'decode-controls'];
+    controls.forEach(id => document.getElementById(id).classList.add('hidden'));
+    elements.encodePreview.hidden = true;
+    elements.decodePreview.hidden = true;
+    elements.messageInput.value = '';
+    elements.decodedMessage.textContent = '';
+    encodeFile = null;
+    decodeFile = null;
+    elements.encodeButton.disabled = true;
+    elements.decodeButton.disabled = true;
 }
 
 // Inicialização
 function init() {
+    // Resetar interface inicial
+    resetInterface();
     // Configurar áreas de arrastar e soltar
     setupDropArea(elements.encodeDropArea, elements.encodeFileInput, elements.encodePreview, 'encode');
     setupDropArea(elements.decodeDropArea, elements.decodeFileInput, elements.decodePreview, 'decode');

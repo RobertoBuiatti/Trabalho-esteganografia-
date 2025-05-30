@@ -27,17 +27,17 @@
                         <img id="encode-preview" alt="Preview da imagem" hidden>
                     </div>
                 </div>
-                <div class="input-group">
+                <div class="input-group hidden" id="encode-controls">
                     <textarea 
                         id="message-input" 
                         placeholder="Digite sua mensagem secreta aqui..."
                         rows="4"
                         aria-label="Mensagem secreta para ocultar"></textarea>
-                </div>
-                <div class="button-group">
-                    <button id="encode-button" class="primary-button" disabled>
-                        Ocultar Mensagem
-                    </button>
+                    <div class="button-group">
+                        <button id="encode-button" class="primary-button" disabled>
+                            Ocultar Mensagem
+                        </button>
+                    </div>
                 </div>
                 <div id="encode-status" class="status-message" role="alert" aria-live="polite"></div>
             </section>
@@ -54,13 +54,15 @@
                         <img id="decode-preview" alt="Preview da imagem" hidden>
                     </div>
                 </div>
-                <div class="button-group">
-                    <button id="decode-button" class="primary-button" disabled>
-                        Extrair Mensagem
-                    </button>
-                </div>
-                <div class="output-container">
-                    <div id="decoded-message" class="message-output" role="region" aria-live="polite"></div>
+                <div id="decode-controls" class="hidden">
+                    <div class="button-group">
+                        <button id="decode-button" class="primary-button" disabled>
+                            Extrair Mensagem
+                        </button>
+                    </div>
+                    <div class="output-container">
+                        <div id="decoded-message" class="message-output" role="region" aria-live="polite"></div>
+                    </div>
                 </div>
                 <div id="decode-status" class="status-message" role="alert" aria-live="polite"></div>
             </section>

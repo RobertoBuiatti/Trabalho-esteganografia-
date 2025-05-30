@@ -170,6 +170,11 @@ textarea:focus {
     font-weight: 500;
 }
 
+/* Classe para elementos escondidos */
+.hidden {
+    display: none !important;
+}
+
 /* Responsividade para dispositivos muito pequenos */
 @media (max-width: var(--mobile)) {
     .primary-button {
