@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aplicação de Esteganografia para ocultar mensagens em imagens">
     <title>Esteganografia em Imagens</title>
     <link rel="stylesheet" href="styles/main.css">
 </head>
@@ -16,40 +17,41 @@
         <main class="content">
             <!-- Seção de Codificação -->
             <section class="encode-section">
-                <h2>Inserir Mensagem</h2>
+                <h2>Ocultar Mensagem</h2>
                 <div class="upload-container" id="encode-upload">
                     <div class="upload-area" id="encode-drop-area">
                         <p>Arraste uma imagem ou clique para selecionar</p>
-                        <input type="file" id="encode-file-input" accept=".png,.jpg,.jpeg,.bmp" hidden>
+                        <input type="file" id="encode-file-input" accept="image/png,image/jpeg" hidden>
                     </div>
                     <div class="preview-container">
-                        <img id="encode-preview" alt="Preview" hidden>
+                        <img id="encode-preview" alt="Preview da imagem" hidden>
                     </div>
                 </div>
                 <div class="input-group">
                     <textarea 
                         id="message-input" 
                         placeholder="Digite sua mensagem secreta aqui..."
-                        rows="4"></textarea>
+                        rows="4"
+                        aria-label="Mensagem secreta para ocultar"></textarea>
                 </div>
                 <div class="button-group">
                     <button id="encode-button" class="primary-button" disabled>
-                        Codificar Mensagem
+                        Ocultar Mensagem
                     </button>
                 </div>
-                <div id="encode-status" class="status-message"></div>
+                <div id="encode-status" class="status-message" role="alert" aria-live="polite"></div>
             </section>
 
             <!-- Seção de Decodificação -->
             <section class="decode-section">
-                <h2>Ler Mensagem</h2>
+                <h2>Extrair Mensagem</h2>
                 <div class="upload-container" id="decode-upload">
                     <div class="upload-area" id="decode-drop-area">
                         <p>Arraste uma imagem ou clique para selecionar</p>
-                        <input type="file" id="decode-file-input" accept=".png,.jpg,.jpeg,.bmp" hidden>
+                        <input type="file" id="decode-file-input" accept="image/png,image/jpeg" hidden>
                     </div>
                     <div class="preview-container">
-                        <img id="decode-preview" alt="Preview" hidden>
+                        <img id="decode-preview" alt="Preview da imagem" hidden>
                     </div>
                 </div>
                 <div class="button-group">
@@ -58,14 +60,15 @@
                     </button>
                 </div>
                 <div class="output-container">
-                    <div id="decoded-message" class="message-output"></div>
+                    <div id="decoded-message" class="message-output" role="region" aria-live="polite"></div>
                 </div>
-                <div id="decode-status" class="status-message"></div>
+                <div id="decode-status" class="status-message" role="alert" aria-live="polite"></div>
             </section>
         </main>
 
         <footer>
-            <p>Desenvolvido por roberto</p>
+            <p>Desenvolvido por Roberto - 2025</p>
+            <p>API: <a href="https://steganografia-api.onrender.com" target="_blank" rel="noopener noreferrer">steganografia-api.onrender.com</a></p>
         </footer>
     </div>
 
@@ -75,6 +78,6 @@
         <p>Processando...</p>
     </div>
 
-    <script type="module" src="scripts/main.js"></script>
+    <script src="scripts/main.js"></script>
 </body>
 </html>
